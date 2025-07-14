@@ -61,6 +61,13 @@ to your ESP32.
 repo_url = "YourGitHubUsername/YourRepoName"
 ```
 
+### 5️⃣ Add these lines to `boot.py`
+```python
+import ota
+ota.main()
+```
+
 ### ⚡ Notes
 - ✅ Ensure your GitHub repository is public or raw file links are accessible without authentication
 - ✅ Update the `version` number everytime you change the `main.py` of the repo.
+- ✅ It might take some time to appear you code in Git Raw. So, wait for a bit. And simply restart your ESP32/RPI pico.
