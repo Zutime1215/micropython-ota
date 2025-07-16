@@ -1,9 +1,8 @@
-import os
 import json
 import machine
 import network
 import urequests
-from time import sleep, time
+from time import sleep
 import wifi_cred
 
 
@@ -15,18 +14,14 @@ def blink(t):
         led.value(0)
         sleep(t)
         
-        
 def main():
-    repo_url = ""
-    version_url = f"https://raw.githubusercontent.com/{repo_url}/refs/heads/main/version.json"
-    mainCode_url = f"https://raw.githubusercontent.com/{repo_url}/refs/heads/main/main.py"
-    
-    
-    # Check For Do OTA
-    with open('version.json') as f:
-        prev_time = int(json.load(f)['time'])
-    
-    #if time() - prev_time > 30:
+    repo_url = "Zutime1215/own_esp32_u"
+    branch = "main"
+    file_name = "main.py"
+
+    check_url = f"https://api.github.com/repos/{repo_url}/contents/{file_name}?ref={branch}"
+    mainCode_url = f"https://raw.githubusercontent.com/{repo_url}/refs/heads/{branch}/{file_name}"
+
     # Connect To WIFI
     sta_if = network.WLAN(network.STA_IF)
     sta_if.active(True)
@@ -37,31 +32,25 @@ def main():
     print(f'Connected to WiFi, IP is: {sta_if.ifconfig()[0]}')
     blink(0.4)
 
-    # Check For Update
-    if 'version.json' in os.listdir():    
-        with open('version.json') as f:
-            current_version = int(json.load(f)['version'])
-    else:
-        current_version = 0
-        with open('version.json', 'w') as f:
-            json.dump({'version': current_version}, f)
+    # Check For Update    
+    with open('sha.json') as f:
+        current_version = json.load(f)['version']
     
-    res = urequests.get(version_url).text
+    res = urequests.get(check_url).text
     data = json.loads(res)
-    latest_version = data['version']
+    latest_version = data['sha']
     
-    if current_version < latest_version:
+    if current_version != latest_version:
         blink(0.1)
         # Change The main and version file
         res = urequests.get(mainCode_url).text
         with open('main.py', 'w') as f:
             f.write(res)
             
-        with open('version.json', 'w') as f:
-            json.dump({'version': latest_version, 'time': int(time())}, f)
+        with open('sha.json', 'w') as f:
+            json.dump({'version': latest_version}, f)
         
         # Restart The Machine    
         machine.reset()
     else:
         return
-
