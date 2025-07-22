@@ -1,6 +1,7 @@
+# This file is executed on every boot (including wake-boot from deepsleep)
 from machine import Pin
-from configOTA import updateGPIO
+from otaDir.configOTA import updateGPIO
 con = Pin(updateGPIO, Pin.IN, Pin.PULL_UP)
 if con.value() == 0:
-    import ota
-    ota.main()
+    import otaDir.ota
+    otaDir.ota.main()

@@ -3,7 +3,7 @@ import machine
 import network
 import urequests
 from time import sleep
-import configOTA
+from otaDir import configOTA
 from os import remove
 
 
@@ -26,10 +26,10 @@ def main():
     sta_if.connect(configOTA.ssid, configOTA.password)
     while not sta_if.isconnected():
         sleep(0.25)
-    #blink(0.4)
+    print(f"Machine: Wifi Connected. IP: {sta_if.ifconfig()[0]}")
 
     # Read sha.json  
-    with open('sha.json') as f:
+    with open('otaDir/sha.json') as f:
         shaJson = json.load(f)
         current_version = shaJson['version']
         old_files = shaJson["files"]
@@ -38,20 +38,25 @@ def main():
     old_files_names = {old_file["name"] for old_file in old_files}
 
     # Checking For New Updated Files
-    res = urequests.get(check_url, headers=headers).text
-    repo_tree = json.loads(res)["tree"]
+    checkResponse = json.loads(urequests.get(check_url, headers=headers).text)
+    repo_tree = checkResponse["tree"]
     files = []
 
     for leaf in repo_tree:
         nameL = leaf["path"].split("otaDir")
-        if nameL[0] == '':
+        if nameL[0] == leaf["path"]:
+            continue
+        elif nameL[0] == '':
             if nameL[1] == '':
                 if current_version == leaf["sha"]:
                     return
                 latest_version = leaf["sha"]
             elif nameL[1].startswith('/'):
                 files.append({"name": nameL[1][1:], "sha": leaf["sha"]})
-
+    
+    # if Remote otaDir not contains any files
+    if len(files) == 0:
+        latest_version = checkResponse["sha"]
 
     new_files_names = {file["name"] for file in files}
     
@@ -63,17 +68,24 @@ def main():
                 flag = False
                 break
         if flag:
-            res = urequests.get(mainCode_url + file["name"]).text
+            print("Machine: Updating", file)
+            fileResponse = urequests.get(mainCode_url + file["name"]).text
             with open(file["name"], 'w') as f:
-                f.write(res)
+                f.write(fileResponse)
 
 
     # Remove Files not NEEDED
     deletable_files = list(old_files_names - new_files_names)
+    print("Machine: Deleting", deletable_files if len(deletable_files) != 0 else "0 files")
     for delFiles in deletable_files:
         remove(delFiles)
-
+    
+    
     # Update The sha.json
-    with open('sha.json', 'w') as f:
+    print("Machine: Updating sha.json")
+    with open('otaDir/sha.json', 'w') as f:
         json.dump({'version': latest_version, "files": files}, f)
-
+        
+    # set updateGPIO to HIGH
+    blink(0.4)
+    sleep(10)
