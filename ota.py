@@ -16,8 +16,8 @@ def blink(t):
         
 def main():
     headers = {"User-Agent": "ESP-MicroPython"}
-    check_url = f"https://api.github.com/repos/{configOTA.repoURL}/contents/{configOTA.fileName}?ref={configOTA.branch}"
-    mainCode_url = f"https://raw.githubusercontent.com/{configOTA.repoURL}/refs/heads/{configOTA.branch}/{configOTA.fileName}"
+    check_url = f"http://{configOTA.serverURL}/.git/refs/heads/{configOTA.branch}"
+    mainCode_url = f"http://{configOTA.serverURL}/{configOTA.fileName}"
 
     # Connect To WIFI
     sta_if = network.WLAN(network.STA_IF)
@@ -33,9 +33,7 @@ def main():
     with open('sha.json') as f:
         current_version = json.load(f)['version']
     
-    res = urequests.get(check_url, headers=headers).text
-    data = json.loads(res)
-    latest_version = data['sha']
+    latest_version = urequests.get(check_url, headers=headers).text
     
     if current_version != latest_version:
         #blink(0.1)
@@ -51,4 +49,3 @@ def main():
         machine.reset()
     else:
         return
-

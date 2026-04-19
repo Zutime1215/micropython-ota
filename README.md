@@ -1,60 +1,139 @@
-# MicroPython OTA Updater
+# ESP MicroPython OTA Update System (Local Network)
 
-This repository provides a **clean, reliable OTA (Over-The-Air) updater for ESP32/ESP8266**(Tested) **running MicroPython**. It checks your GitHub repository for updates to `main.py`, downloads the latest version if available, and restarts your Machine automatically to apply updates **without reflashing firmware manually**.
-
----
-
-## 🚀 Features
-
-✅ Checks for updates by comparing **SHA (`sha.json`) on the device and GitHub** (ensures reliable version detection).  
-✅ Connects to WiFi automatically using your credentials.  
-✅ Downloads `fileName` from your GitHub repository if a newer version is available.  
-✅ Stores the updated SHA locally in `sha.json`.  
-✅ Automatically restarts the ESP32 after updating to run the new code.  
-✅ Optional LED blink feedback for status indication.  
-✅ Controlled OTA updates using a **physical GPIO pin for safe updates** (update only when the pin is held LOW on boot).
+This repository contains a simple **Over-The-Air (OTA)** update system for MicroPython-based devices (ESP8266/ESP32) that works **entirely over a local network (LAN)**. No cloud or remote hosting is required.
 
 ---
 
-## 🛠️ Setup Instructions
+## 📁 Project Structure
 
-### 1️⃣ Fill `configOTA.py`
-Add your WiFi and repository configurations:
-
-```python
-ssid = "YourSSID"
-password = "YourPassword"
-repoURL = "YourGitHubUsername/YourRepoName"
-branch = "branchName"
-fileName = "fileName.py"
-builtinLED = 2            # GPIO for onboard LED (optional)
-updateGPIO = 5            # GPIO pin to trigger OTA update
+```
+ota.py          # Handles OTA update logic
+configOTA.py    # Configuration file for WiFi and local server
+boot.py         # Runs at boot to trigger OTA update
+sha.json        # Stores current firmware version
 ```
 
-### 2️⃣ Prepare your GitHub repository
-- GitHub must be public or raw URLs must be accessible without authentication.
+---
 
-### 3️⃣ Upload files to your ESP32
+## ⚙️ How It Works (LAN-based OTA)
+
+1. On boot, the device checks a GPIO pin (`updateGPIO`).
+2. If the pin is pulled **LOW**, OTA update process starts.
+3. Device connects to your **local WiFi network**.
+4. It queries a **local HTTP server (same LAN)** for the latest version hash.
+5. Compares it with the local version stored in `sha.json`.
+6. If a new version is found:
+   - Downloads updated `main.py` from the local server
+   - Updates `sha.json`
+   - Restarts the device
+7. If no update is available, it exits normally.
+
+---
+
+## 🧩 Configuration
+
+Edit `configOTA.py`:
+
+```python
+ssid = "YOUR_WIFI_SSID"
+password = "YOUR_WIFI_PASSWORD"
+serverURL = "192.168.1.101:8080"  # Local server IP
+branch = "main"
+fileName = "main.py"
+builtinLED = 2
+updateGPIO = 5
+```
+
+### Parameters
+
+- **ssid / password**: Your local WiFi credentials
+- **serverURL**: **Local server IP + port** (must be in same network)
+- **branch**: Used to read version hash from `.git` (optional but used here)
+- **fileName**: File to download (typically `main.py`)
+- **builtinLED**: LED pin (optional for debugging)
+- **updateGPIO**: GPIO pin to trigger update mode
+
+---
+
+## 🖥️ Local Server Setup
+
+You must run a server **inside your LAN**.
+
+### Option 1: Simple Python HTTP Server
+
+In your project folder:
+
+```bash
+python -m http.server 8080
+```
+
+Make sure your folder contains:
+
+```
+main.py
+.git/refs/heads/main
+```
+
+### Option 2: Any Local Web Server
+
+You can also use:
+- Flask
+- Node.js
+- Nginx / Apache
+
+As long as these endpoints work:
+
+- `http://<serverIP>:8080/.git/refs/heads/main`
+- `http://<serverIP>:8080/main.py`
+
+---
+
+## 🚀 Usage
+
+### 1. Upload Files to Device
+
 - `boot.py`
 - `ota.py`
 - `configOTA.py`
 - `sha.json`
-- A starter `main.py`
 
+### 2. Start Local Server
 
+Run your server on your PC (same WiFi network).
 
-### 4️⃣ OTA update triggering
-- Connect GPIO pin defined as `updateGPIO` (default GPIO 5) to GND during boot to trigger OTA.
-- If the pin is HIGH during boot, OTA will be skipped.
+### 3. Trigger OTA Update
+
+- Connect `updateGPIO` → **GND (LOW)**
+- Restart device
+
+The device will:
+- Connect to WiFi
+- Contact your **local server**
+- Update if needed
+
 ---
 
-### ⚡ How It Works
-✅ On boot, if the `updateGPIO` pin is LOW:
-- Connects to WiFi.
-- Fetches the SHA of `fileName` from your GitHub repository.
-- If the SHA differs from the stored SHA in `sha.json`, it:
-  - Downloads the latest `fileName`.
-  - Updates `sha.json` with the new SHA.
-  - Restarts the Machine to apply the update.
+## 💡 Notes
 
-✅ If the SHA is the same, it skips updating and runs normally.
+- This system works **offline (no internet required)**.
+- Both device and server must be on the **same network**.
+- `sha.json` must exist before first run.
+- Only `main.py` is updated (can be extended).
+- Uses `.git` reference to detect version changes.
+
+---
+
+## 🔧 Future Improvements
+
+- Remove dependency on `.git` (use custom version API)
+- Multi-file OTA updates
+- Compression for faster transfer
+- Authentication for security
+- Web dashboard for updates
+
+---
+
+## 📜 License
+
+Open-source — use and modify freely.
+
